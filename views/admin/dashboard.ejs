@@ -1,0 +1,58 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+<div class="container">
+  <h1>Dashboard</h1>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value"><%= activeContainers %></div>
+      <div class="stat-label">Active Containers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.total_campaigns %></div>
+      <div class="stat-label">Campaigns</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.total_tokens %></div>
+      <div class="stat-label">Invite Links</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.total_sessions %></div>
+      <div class="stat-label">Sessions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.submitted_sessions %></div>
+      <div class="stat-label">Submissions</div>
+    </div>
+  </div>
+
+  <h2>Recent Sessions</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Token</th>
+        <th>Email</th>
+        <th>Campaign</th>
+        <th>Launched</th>
+        <th>Completed</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% recentSessions.forEach(s => { %>
+      <tr>
+        <td><code><%= s.token ? s.token.slice(0,8) : '—' %>…</code></td>
+        <td><%= s.email || '—' %></td>
+        <td><%= s.campaign_name %></td>
+        <td><%= s.launched_at || '—' %></td>
+        <td><%= s.completed_at || '—' %></td>
+        <td><span class="badge badge-<%= s.completion_reason || 'pending' %>"><%= s.completion_reason || 'active' %></span></td>
+      </tr>
+      <% }) %>
+      <% if (!recentSessions.length) { %>
+      <tr><td colspan="6" class="text-center text-muted">No sessions yet</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/foot') %>

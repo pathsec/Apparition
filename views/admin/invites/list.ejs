@@ -1,0 +1,59 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container">
+  <div class="page-header">
+    <h1>Invite Links<% if (campaign) { %> — <%= campaign.name %><% } %></h1>
+  </div>
+
+  <div class="form-row" style="margin-bottom:1rem">
+    <form method="GET" action="/admin/invites" style="display:flex;gap:.5rem;align-items:center">
+      <select name="campaign_id" class="form-control" style="width:auto">
+        <option value="">All campaigns</option>
+        <% campaigns.forEach(c => { %>
+        <option value="<%= c.id %>" <%= campaign && campaign.id == c.id ? 'selected' : '' %>><%= c.name %></option>
+        <% }) %>
+      </select>
+      <button type="submit" class="btn">Filter</button>
+    </form>
+    <% if (campaign) { %>
+    <form method="POST" action="/admin/invites/generate" style="display:flex;gap:.5rem;align-items:center">
+      <input type="hidden" name="campaign_id" value="<%= campaign.id %>">
+      <input type="number" name="count" value="10" min="1" max="1000" class="form-control" style="width:80px">
+      <button type="submit" class="btn btn-primary">Generate</button>
+    </form>
+    <% } %>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Token</th>
+        <th>Email</th>
+        <th>Created</th>
+        <th>Clicked</th>
+        <th>Launched</th>
+        <th>Completed</th>
+        <th>Reason</th>
+        <th>Submitted</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% tokens.forEach(t => { %>
+      <tr>
+        <td><a href="/admin/invites/<%= t.id %>"><code><%= t.token.slice(0,8) %>…</code></a></td>
+        <td><%= t.email || '—' %></td>
+        <td><%= t.created_at %></td>
+        <td><%= t.clicked_at || '—' %></td>
+        <td><%= t.launched_at || '—' %></td>
+        <td><%= t.completed_at || '—' %></td>
+        <td><%= t.completion_reason || '—' %></td>
+        <td><%= t.submitted ? 'yes' : 'no' %></td>
+      </tr>
+      <% }) %>
+      <% if (!tokens.length) { %>
+      <tr><td colspan="8" class="text-center text-muted">No tokens found.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../../partials/foot') %>

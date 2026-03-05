@@ -1,0 +1,82 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container">
+  <div class="page-header">
+    <h1>Send Email Invites</h1>
+    <a href="/admin/email/history" class="btn">View History</a>
+  </div>
+
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+
+  <% if (typeof results !== 'undefined' && results.length) { %>
+  <div class="code-block" style="margin-bottom:1.5rem">
+    <% results.forEach(r => { %>
+    <div class="<%= r.status === 'sent' ? 'text-success' : 'text-danger' %>">
+      <%= r.email %>: <%= r.status %><% if (r.error) { %> — <%= r.error %><% } %>
+    </div>
+    <% }) %>
+  </div>
+  <% } %>
+
+  <form method="POST" action="/admin/email/send">
+    <div class="form-group">
+      <label>Campaign *</label>
+      <select name="campaign_id" class="form-control" required>
+        <option value="">Select a campaign…</option>
+        <% campaigns.forEach(c => { %>
+        <option value="<%= c.id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Recipients * <small>(one email per line, or comma-separated)</small></label>
+      <textarea name="emails" class="form-control" rows="6"
+                placeholder="alice@example.com&#10;bob@example.com"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Subject *</label>
+      <input type="text" name="subject" class="form-control" required
+             placeholder="You're invited!">
+    </div>
+
+    <div class="form-group">
+      <label>Body (plain text) * <small>— use <code>{link}</code> as placeholder for the invite URL</small></label>
+      <textarea name="body_text" class="form-control" rows="6"
+                placeholder="Hi,&#10;&#10;Click here to join your session: {link}&#10;&#10;The link expires in 48 hours."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Body (HTML) <small>optional — same <code>{link}</code> placeholder; will be wrapped in &lt;a&gt; tag</small></label>
+      <textarea name="body_html" class="form-control" rows="6"
+                placeholder="<p>Click <strong>{link}</strong> to join.</p>"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Send Invites</button>
+    </div>
+  </form>
+
+  <% if (history.length) { %>
+  <h2 style="margin-top:2.5rem">Recent Sends</h2>
+  <table class="table">
+    <thead>
+      <tr><th>To</th><th>Campaign</th><th>Sent</th><th>Opened</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <% history.forEach(h => { %>
+      <tr>
+        <td><%= h.recipient_email %></td>
+        <td><%= h.campaign_name %></td>
+        <td><%= h.sent_at || '—' %></td>
+        <td><%= h.opened_at || (h.opened ? 'yes' : '—') %></td>
+        <td><% if (h.send_error) { %><span class="badge badge-danger">error</span><% } else { %><span class="badge badge-trigger">sent</span><% } %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+<%- include('../../partials/foot') %>

@@ -1,0 +1,46 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container" style="max-width:720px">
+  <h1>Invite Detail</h1>
+
+  <table class="table table-detail">
+    <tr><th>Token</th><td><code><%= token.token %></code></td></tr>
+    <tr><th>Campaign</th><td><a href="/admin/campaigns/<%= token.campaign_id %>"><%= token.campaign_name %></a></td></tr>
+    <tr><th>Email</th><td><%= token.email || '—' %></td></tr>
+    <tr><th>Expires At</th><td><%= token.expires_at %></td></tr>
+    <tr><th>Created</th><td><%= token.created_at %></td></tr>
+    <tr><th>Clicked At</th><td><%= token.clicked_at || '—' %></td></tr>
+    <tr><th>Clicked IP</th><td><%= token.clicked_ip || '—' %></td></tr>
+    <tr><th>Launched</th><td><%= token.launched ? 'Yes' : 'No' %></td></tr>
+    <tr><th>Session ID</th><td><%= token.session_id || '—' %></td></tr>
+    <tr><th>Launched At</th><td><%= token.launched_at || '—' %></td></tr>
+    <tr><th>Completed At</th><td><%= token.completed_at || '—' %></td></tr>
+    <tr><th>Completion Reason</th><td><%= token.completion_reason || '—' %></td></tr>
+    <tr><th>Submitted</th><td><%= token.submitted ? 'Yes' : 'No' %></td></tr>
+  </table>
+
+  <% if (token.payload) { %>
+  <h2>Session Submission</h2>
+  <div class="code-block">
+    <strong>Event:</strong> <%= token.event_type %><br>
+    <strong>Received:</strong> <%= token.received_at %><br>
+    <pre><%= JSON.stringify(JSON.parse(token.payload), null, 2) %></pre>
+  </div>
+  <% } %>
+
+  <div class="form-actions" style="margin-top:1.5rem">
+    <% if (!token.completed) { %>
+    <button class="btn btn-danger" onclick="revokeToken(<%= token.id %>)">Revoke Token</button>
+    <% } %>
+    <a href="/admin/invites?campaign_id=<%= token.campaign_id %>" class="btn">Back</a>
+  </div>
+</div>
+<script>
+async function revokeToken(id) {
+  if (!confirm('Revoke this token? The link will no longer work.')) return;
+  const r = await fetch(`/admin/invites/${id}/revoke`, { method: 'POST' });
+  if (r.ok) location.reload();
+  else alert('Failed to revoke');
+}
+</script>
+<%- include('../../partials/foot') %>

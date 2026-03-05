@@ -1,0 +1,44 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container">
+  <div class="page-header">
+    <h1>Campaigns</h1>
+    <a href="/admin/campaigns/new" class="btn btn-primary">+ New Campaign</a>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Expires</th>
+        <th>Lifetime</th>
+        <th>Tokens</th>
+        <th>Launched</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% campaigns.forEach(c => { %>
+      <tr>
+        <td><a href="/admin/campaigns/<%= c.id %>"><%= c.name %></a></td>
+        <td><%= c.expires_at %></td>
+        <td><%= c.lifetime_minutes %> min</td>
+        <td><%= c.token_count %></td>
+        <td><%= c.launched_count %></td>
+        <td>
+          <a href="/admin/campaigns/<%= c.id %>/edit" class="btn btn-sm">Edit</a>
+          <a href="/admin/invites?campaign_id=<%= c.id %>" class="btn btn-sm">Invites</a>
+          <form method="POST" action="/admin/campaigns/<%= c.id %>/delete" style="display:inline"
+                onsubmit="return confirm('Delete campaign and all its tokens?')">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!campaigns.length) { %>
+      <tr><td colspan="6" class="text-center text-muted">No campaigns yet. <a href="/admin/campaigns/new">Create one.</a></td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../../partials/foot') %>

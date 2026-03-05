@@ -1,0 +1,29 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container">
+  <div class="page-header">
+    <h1>Email History</h1>
+    <a href="/admin/email" class="btn btn-primary">Send New</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr><th>To</th><th>Campaign</th><th>Subject</th><th>Sent</th><th>Opened</th><th>Error</th></tr>
+    </thead>
+    <tbody>
+      <% history.forEach(h => { %>
+      <tr>
+        <td><%= h.recipient_email %></td>
+        <td><%= h.campaign_name %></td>
+        <td><%= h.subject %></td>
+        <td><%= h.sent_at || '—' %></td>
+        <td><%= h.opened_at || (h.opened ? 'yes' : '—') %></td>
+        <td class="text-danger"><%= h.send_error || '' %></td>
+      </tr>
+      <% }) %>
+      <% if (!history.length) { %>
+      <tr><td colspan="6" class="text-center text-muted">No emails sent yet.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../../partials/foot') %>

@@ -1,0 +1,101 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+<div class="container" style="max-width:640px">
+  <h1>Settings</h1>
+
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+
+  <!-- ── SMTP Config ─────────────────────────────────────────────────── -->
+  <h2>Mail / SMTP</h2>
+  <p class="text-muted">Environment variables override these DB values at runtime.</p>
+  <form method="POST" action="/admin/settings/mail">
+    <div class="form-row">
+      <div class="form-group">
+        <label>SMTP Host</label>
+        <input type="text" name="SMTP_HOST" class="form-control"
+               value="<%= mailConfig.SMTP_HOST || '' %>" placeholder="in-v3.mailjet.com">
+      </div>
+      <div class="form-group">
+        <label>SMTP Port</label>
+        <input type="number" name="SMTP_PORT" class="form-control"
+               value="<%= mailConfig.SMTP_PORT || '587' %>">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>SMTP User / API Key</label>
+        <input type="text" name="SMTP_USER" class="form-control"
+               value="<%= mailConfig.SMTP_USER || '' %>">
+      </div>
+      <div class="form-group">
+        <label>SMTP Password / Secret Key</label>
+        <input type="password" name="SMTP_PASS" class="form-control" placeholder="(leave blank to keep existing)">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>From Address</label>
+        <input type="email" name="SMTP_FROM" class="form-control"
+               value="<%= mailConfig.SMTP_FROM || '' %>">
+      </div>
+      <div class="form-group">
+        <label>From Name</label>
+        <input type="text" name="SMTP_FROM_NAME" class="form-control"
+               value="<%= mailConfig.SMTP_FROM_NAME || '' %>" placeholder="NoVNC Manager">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" name="SMTP_SECURE" value="true"
+               <%= mailConfig.SMTP_SECURE === 'true' ? 'checked' : '' %>>
+        Use TLS (port 465)
+      </label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Mail Settings</button>
+    </div>
+  </form>
+
+  <!-- ── Cloudflare Turnstile ──────────────────────────────────────── -->
+  <h2 style="margin-top:2.5rem">Cloudflare Turnstile <span style="font-weight:400;font-size:.85rem;color:#64748b">(optional)</span></h2>
+  <p class="text-muted">Adds a bot-verification challenge to the session join page. Leave blank to disable. Env vars <code>TURNSTILE_SITE_KEY</code> / <code>TURNSTILE_SECRET_KEY</code> override these values.</p>
+  <form method="POST" action="/admin/settings/turnstile">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Site Key</label>
+        <input type="text" name="TURNSTILE_SITE_KEY" class="form-control"
+               value="<%= turnstile.TURNSTILE_SITE_KEY || '' %>" placeholder="0x4AAAAAAA…">
+      </div>
+      <div class="form-group">
+        <label>Secret Key</label>
+        <input type="password" name="TURNSTILE_SECRET_KEY" class="form-control"
+               placeholder="(leave blank to keep existing)">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Turnstile Settings</button>
+    </div>
+  </form>
+
+  <!-- ── Change Password ────────────────────────────────────────────── -->
+  <h2 style="margin-top:2.5rem">Change Admin Password</h2>
+  <form method="POST" action="/admin/settings/password">
+    <div class="form-group">
+      <label>Current Password</label>
+      <input type="password" name="current_password" class="form-control" required>
+    </div>
+    <div class="form-group">
+      <label>New Password</label>
+      <input type="password" name="new_password" class="form-control" required minlength="12">
+    </div>
+    <div class="form-group">
+      <label>Confirm New Password</label>
+      <input type="password" name="confirm_password" class="form-control" required minlength="12">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Update Password</button>
+    </div>
+  </form>
+</div>
+<%- include('../partials/foot') %>

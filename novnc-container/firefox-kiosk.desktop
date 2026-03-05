@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Firefox Kiosk
+Exec=/usr/bin/firefox
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true

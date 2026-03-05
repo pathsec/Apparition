@@ -1,0 +1,45 @@
+<%- include('partials/head') %>
+<style>
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:#0f1117; }
+  .join-card {
+    text-align:center; padding:3rem 2rem; max-width:420px; width:100%;
+    background:#1a1d27; border:1px solid #2a2d3a; border-radius:8px;
+  }
+  .join-card h1 { font-size:1.4rem; margin-bottom:.5rem; }
+  .join-card p  { color:#64748b; font-size:.95rem; margin-bottom:1.5rem; }
+  .cf-turnstile  { margin:0 auto 1.25rem; display:flex; justify-content:center; }
+  .btn-start {
+    display:inline-block; padding:.75rem 2rem; border:none; border-radius:6px;
+    background:#6366f1; color:#fff; font-size:1rem; cursor:pointer;
+    transition:background .15s;
+  }
+  .btn-start:hover:not(:disabled) { background:#4f46e5; }
+  .btn-start:disabled { opacity:.5; cursor:not-allowed; }
+</style>
+
+<div class="join-card">
+  <h1>Your session is ready</h1>
+  <p>Click the button below to start.</p>
+
+  <form method="POST" action="/<%= joinPath %>/<%= token %>">
+    <% if (turnstileSiteKey) { %>
+      <div class="cf-turnstile"
+           data-sitekey="<%= turnstileSiteKey %>"
+           data-callback="onVerified"
+           data-theme="dark">
+      </div>
+      <button type="submit" class="btn-start" id="start-btn" disabled>Verifying…</button>
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+      <script>
+        function onVerified() {
+          const btn = document.getElementById('start-btn');
+          btn.disabled = false;
+          btn.textContent = 'Start Session';
+        }
+      </script>
+    <% } else { %>
+      <button type="submit" class="btn-start">Start Session</button>
+    <% } %>
+  </form>
+</div>
+<%- include('partials/foot') %>

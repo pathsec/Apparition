@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Session</title>
+  <% if (faviconUrl) { %>
+  <link rel="icon" id="favicon" href="<%- faviconUrl %>">
+  <% } else { %>
+  <link rel="icon" id="favicon" href="">
+  <% } %>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    iframe { width: 100%; height: 100%; border: none; display: block; }
+  </style>
+</head>
+<body>
+  <iframe id="vnc" src="<%- vncSrc %>" allowfullscreen></iframe>
+  <script>
+    // Poll for live title/favicon from the container (updated by titlemon.sh every 3s).
+    const INFO_URL   = '/vnc/<%= sessionId %>/info';
+    const STATUS_URL = '/vnc/<%= sessionId %>/status';
+    const favicon    = document.getElementById('favicon');
+
+    async function pollInfo() {
+      try {
+        const r = await fetch(INFO_URL, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.title) document.title = d.title;
+        if (d.faviconUrl && favicon.href !== d.faviconUrl) favicon.href = d.faviconUrl;
+      } catch (_) {}
+      setTimeout(pollInfo, 3000);
+    }
+    setTimeout(pollInfo, 3000);
+
+    // Poll for session completion and redirect when the session ends.
+    async function pollStatus() {
+      try {
+        const r = await fetch(STATUS_URL, { cache: 'no-store' });
+        const d = await r.json();
+        if (d.completed && d.redirectUrl) { window.location.href = d.redirectUrl; return; }
+      } catch (_) {}
+      setTimeout(pollStatus, 3000);
+    }
+    setTimeout(pollStatus, 3000);
+  </script>
+</body>
+</html>

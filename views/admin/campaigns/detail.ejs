@@ -1,0 +1,158 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container">
+  <div class="page-header">
+    <h1><%= campaign.name %></h1>
+    <div>
+      <a href="/admin/campaigns/<%= campaign.id %>/edit" class="btn">Edit</a>
+      <a href="/admin/invites?campaign_id=<%= campaign.id %>" class="btn btn-primary">View All Invites</a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div><strong>Expires:</strong> <%= campaign.expires_at %></div>
+    <div><strong>Lifetime:</strong> <%= campaign.lifetime_minutes %> minutes</div>
+    <div><strong>Start URL:</strong> <a href="<%= campaign.start_url %>" target="_blank"><%= campaign.start_url %></a></div>
+    <div><strong>Redirect URL:</strong> <a href="<%= campaign.redirect_url %>" target="_blank"><%= campaign.redirect_url %></a></div>
+    <% if (campaign.favicon_url) { %>
+    <div><strong>Favicon:</strong> <img src="<%= campaign.favicon_url %>" height="16"> <%= campaign.favicon_url %></div>
+    <% } %>
+    <% if (campaign.completion_url || campaign.completion_cookie) { %>
+    <div>
+      <strong>Completion Trigger:</strong>
+      <% if (campaign.completion_url) { %>URL <code><%= campaign.completion_url %></code><% if (campaign.completion_cookie) { %> <em class="text-muted">or</em> <% } %><% } %><% if (campaign.completion_cookie) { %>Cookie <code><%= campaign.completion_cookie %></code><% } %>
+      <small class="text-muted">(profile exported on match)</small>
+    </div>
+    <% } %>
+    <div><strong>Loading Page:</strong> <%= campaign.show_loading_page ? 'shown' : 'skipped (direct to VNC)' %></div>
+  </div>
+
+  <!-- ── Token actions ─────────────────────────────────────────────── -->
+  <div class="page-header" style="margin-top:2rem">
+    <h2>Invite Links (<%= tokens.length %>)</h2>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+
+      <!-- Generate test link: 1 token, shows the URL immediately -->
+      <button class="btn btn-primary" onclick="generateTest(<%= campaign.id %>)">
+        + Generate Test Link
+      </button>
+
+      <!-- Bulk generate: creates N tokens for later use / email sending -->
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="number" id="bulk-count" value="10" min="1" max="1000"
+               class="form-control" style="width:72px" title="Number of tokens to create">
+        <button class="btn" onclick="generateBulk(<%= campaign.id %>)">
+          Generate N Tokens
+          <span class="text-muted" style="font-size:.75rem;font-weight:400">(for email sending)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-muted" style="font-size:.85rem;margin-bottom:1rem">
+    <strong>Test Link</strong> — creates one token and shows the join URL immediately so you can open it yourself.<br>
+    <strong>Generate N Tokens</strong> — creates tokens in bulk without sending them. Go to
+    <a href="/admin/email">Email</a> to attach tokens to email addresses and send them out.
+    Each token is single-use: once a container has been launched for it, the link stops working.
+  </p>
+
+  <!-- Test link result banner -->
+  <div id="test-banner" style="display:none" class="alert alert-success" style="word-break:break-all">
+    <strong>Test link ready:</strong><br>
+    <a id="test-url" href="#" target="_blank" style="font-family:monospace;word-break:break-all"></a>
+    <button class="btn btn-sm" style="margin-left:.75rem" onclick="copyTest()">Copy</button>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Token</th>
+        <th>Join URL</th>
+        <th>Email</th>
+        <th>Created</th>
+        <th>Clicked</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="token-tbody">
+      <% tokens.forEach(t => { %>
+      <%- include('../../partials/token-row', { t, baseUrl: baseUrl, joinPath: joinPath }) %>
+      <% }) %>
+      <% if (!tokens.length) { %>
+      <tr id="empty-row"><td colspan="6" class="text-center text-muted">No tokens yet. Use "Generate Test Link" above to create one.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const BASE = '<%= baseUrl %>';
+const JOIN_PATH = '<%= joinPath %>';
+
+async function generateTest(campaignId) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const r = await fetch('/admin/invites/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaign_id: campaignId, count: 1 }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+
+    const token = data.tokens[0];
+    const url   = `${BASE}/${JOIN_PATH}/${token}`;
+
+    // Show banner
+    const banner  = document.getElementById('test-banner');
+    const urlEl   = document.getElementById('test-url');
+    urlEl.href      = url;
+    urlEl.textContent = url;
+    banner.style.display = 'block';
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Prepend row to table
+    document.getElementById('empty-row')?.remove();
+    const tbody = document.getElementById('token-tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><code>${token.slice(0,8)}…</code></td>
+      <td><a href="${url}" target="_blank" style="font-family:monospace;font-size:.8rem">${url}</a>
+          <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${url}')">Copy</button></td>
+      <td>—</td>
+      <td>just now</td>
+      <td>—</td>
+      <td><span class="badge badge-pending">pending</span></td>
+    `;
+    tbody.prepend(tr);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '+ Generate Test Link';
+  }
+}
+
+function copyTest() {
+  const url = document.getElementById('test-url').textContent;
+  navigator.clipboard.writeText(url).then(() => alert('Copied!'));
+}
+
+async function generateBulk(campaignId) {
+  const count = parseInt(document.getElementById('bulk-count').value) || 10;
+  if (!confirm(`Create ${count} token(s) for this campaign?`)) return;
+  const r = await fetch('/admin/invites/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ campaign_id: campaignId, count }),
+  });
+  const data = await r.json();
+  if (!r.ok) { alert('Error: ' + data.error); return; }
+  alert(`Created ${data.generated} token(s). Go to Email to send them.`);
+  location.reload();
+}
+</script>
+<%- include('../../partials/foot') %>

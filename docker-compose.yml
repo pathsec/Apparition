@@ -1,0 +1,65 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+      # Note: do NOT map 6900-6999 here. NoVNC containers bind those ports
+      # directly on the host as sibling containers — the app container does not own them.
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SESSION_SECRET=${SESSION_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - CONTROL_HOST=${CONTROL_HOST}
+      - CONTAINER_HOST=${CONTAINER_HOST:-http://host.docker.internal:3000}
+      - NOVNC_HOST=${NOVNC_HOST}
+      - NOVNC_IMAGE=${NOVNC_IMAGE:-novnc-kiosk}
+      - NOVNC_PORT_START=${NOVNC_PORT_START:-6900}
+      - NOVNC_PORT_END=${NOVNC_PORT_END:-6999}
+      - CONTAINER_NETWORK=${CONTAINER_NETWORK:-bridge}
+      - CONTAINER_MEMORY_LIMIT=${CONTAINER_MEMORY_LIMIT:-1073741824}
+      - CONTAINER_CPU_LIMIT=${CONTAINER_CPU_LIMIT:-1000000000}
+      - CLEANUP_INTERVAL_MS=${CLEANUP_INTERVAL_MS:-60000}
+      - DB_PATH=/data/app.db
+      # SMTP — set these in your .env file; they override any values stored in the DB.
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Apparition}
+    volumes:
+      - app_data:/data
+      # Mount the Docker socket so the control server can manage sibling containers.
+      # SECURITY: This grants root-equivalent access to the host.
+      # Run the app user inside the container as a non-root user (see Dockerfile)
+      # and consider using Docker socket proxy (e.g. Tecnativa/docker-socket-proxy)
+      # in production to restrict which Docker API calls are permitted.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Allow the app container to reach host-bound ports (NoVNC containers bind 6900-6999 on the host).
+    # host.docker.internal resolves to the host gateway on Linux via this extra_hosts entry.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    user: root
+    # Disable SELinux label confinement for this container so it can access the Docker socket.
+    # SELinux cannot relabel socket files (:z doesn't work on sockets), so this is required
+    # on Fedora/RHEL. It only affects this container's label policy, not the whole host.
+    security_opt:
+      - label:disable
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/admin/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Build the custom kiosk image so it's available by name when the app spawns containers.
+  # This service never runs — it's just a build target.
+  novnc-kiosk:
+    build: ./novnc-container
+    image: novnc-kiosk
+    profiles: ["build-only"]  # excluded from `docker-compose up`
+
+volumes:
+  app_data:

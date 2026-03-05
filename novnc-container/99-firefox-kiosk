@@ -1,0 +1,21 @@
+#!/bin/bash
+# Sourced by /etc/X11/Xsession before startxfce4.
+# Launch Firefox in the background once the X display and Xfce session are ready.
+(
+  exec >> /tmp/firefox-kiosk.log 2>&1
+  echo "[$(date)] firefox-kiosk: starting, user=$(id), DISPLAY=$DISPLAY"
+
+  # Wait up to 30s for xfce4-session to appear
+  for i in $(seq 1 30); do
+    if pgrep -x xfce4-session > /dev/null; then
+      echo "[$(date)] firefox-kiosk: xfce4-session found after ${i}s"
+      break
+    fi
+    sleep 1
+  done
+
+  # Give Xfce 3 more seconds to settle
+  sleep 3
+  echo "[$(date)] firefox-kiosk: launching firefox as $(id)"
+  DISPLAY=:1 exec /usr/bin/firefox
+) &

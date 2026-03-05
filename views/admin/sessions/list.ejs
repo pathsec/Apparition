@@ -1,0 +1,99 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/nav') %>
+<div class="container">
+  <h1>Session Log</h1>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Token</th>
+        <th>Email</th>
+        <th>Campaign</th>
+        <th>Launched</th>
+        <th>Completed</th>
+        <th>Outcome</th>
+        <th>Profile</th>
+        <th>Data</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% sessions.forEach(s => { %>
+      <tr>
+        <td><code><%= s.token ? s.token.slice(0,8) : '—' %>…</code></td>
+        <td><%= s.email || '—' %></td>
+        <td><%= s.campaign_name %></td>
+        <td><%= s.launched_at || '—' %></td>
+        <td><%= s.completed_at || '—' %></td>
+        <td>
+          <% if (s.profile_path) { %>
+            <span class="badge badge-success">captured</span>
+          <% } else if (s.completion_reason === 'trigger') { %>
+            <span class="badge badge-trigger">completed</span>
+          <% } else if (s.completion_reason === 'timeout') { %>
+            <span class="badge badge-timeout">timed out</span>
+          <% } else if (s.completion_reason) { %>
+            <span class="badge badge-<%= s.completion_reason %>"><%= s.completion_reason %></span>
+          <% } else if (s.launched_at) { %>
+            <% if (s.completion_url) { %>
+              <span class="badge badge-active">active — awaiting completion URL</span>
+            <% } else { %>
+              <span class="badge badge-active">active</span>
+            <% } %>
+          <% } else { %>
+            <span class="badge badge-pending">pending</span>
+          <% } %>
+        </td>
+        <td>
+          <% if (s.profile_path) { %>
+            <a href="/session/<%= s.session_id %>/profile" class="btn btn-sm btn-primary">⬇ Download</a>
+          <% } %>
+          <% if (!s.completed_at) { %>
+            <button class="btn btn-sm"
+                    onclick="grabProfile('<%= s.session_id %>', this)"
+                    style="margin-top:.2rem">
+              Grab Profile
+            </button>
+          <% } else if (!s.profile_path) { %>
+            <span class="text-muted" style="font-size:.8rem"><%= s.completion_url ? 'not reached' : '—' %></span>
+          <% } %>
+        </td>
+        <td>
+          <% if (s.event_type) { %>
+          <details>
+            <summary><%= s.event_type %></summary>
+            <pre style="font-size:.75rem;max-width:300px;overflow:auto"><%= s.payload %></pre>
+          </details>
+          <% } else { %>—<% } %>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!sessions.length) { %>
+      <tr><td colspan="8" class="text-center text-muted">No sessions yet.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<script>
+async function grabProfile(sessionId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Grabbing…';
+  try {
+    const r    = await fetch(`/session/${sessionId}/grab`, { method: 'POST', headers: { 'Accept': 'application/json' } });
+    const data = await r.json();
+    if (r.ok && data.profileAvailable) {
+      btn.textContent = 'Done!';
+      setTimeout(() => location.reload(), 800);
+    } else if (r.ok) {
+      btn.textContent = 'Exported — reload';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      btn.textContent = 'Failed';
+      btn.disabled = false;
+      alert('Grab failed: ' + (data.error || r.status));
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    btn.disabled = false;
+  }
+}
+</script>
+<%- include('../../partials/foot') %>

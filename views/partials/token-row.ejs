@@ -1,0 +1,29 @@
+<tr>
+  <td><a href="/admin/invites/<%= t.id %>"><code><%= t.token.slice(0,8) %>…</code></a></td>
+  <td>
+    <% const joinUrl = baseUrl + '/' + (joinPath || 'join') + '/' + t.token; %>
+    <% if (!t.launched && !t.completed) { %>
+      <a href="<%= joinUrl %>" target="_blank" style="font-family:monospace;font-size:.8rem"><%= joinUrl %></a>
+      <button class="btn btn-sm" onclick="navigator.clipboard.writeText('<%= joinUrl %>')">Copy</button>
+    <% } else { %>
+      <span class="text-muted" style="font-size:.8rem">used</span>
+    <% } %>
+  </td>
+  <td><%= t.email || '—' %></td>
+  <td><%= t.created_at %></td>
+  <td><%= t.clicked_at || '—' %></td>
+  <td>
+    <% if (t.profile_path && t.session_id) { %>
+      <span class="badge badge-success">captured</span>
+      <a href="/session/<%= t.session_id %>/profile" class="btn btn-sm" style="margin-left:.4rem">⬇ Profile</a>
+    <% } else if (t.completed) { %>
+      <span class="badge badge-trigger">completed</span>
+    <% } else if (t.launched) { %>
+      <span class="badge badge-active">launched</span>
+    <% } else if (t.clicked_at) { %>
+      <span class="badge badge-pending">clicked</span>
+    <% } else { %>
+      <span class="badge badge-pending">pending</span>
+    <% } %>
+  </td>
+</tr>
