@@ -4,12 +4,14 @@ Apparition is a campaign-driven, containerized browser-in-the-middle platform th
 
 Sessions can end automatically on timeout, manual teardown, or a defined completion condition—after which the container is destroyed and the user is redirected to a configured destination. Optionally, the user can continue browsing until a campaign-defined time limit is reached. When a completion condition is met, the session’s browser profile can be downloaded from the admin console; otherwise, the profile remains available for download at any time from the sessions view for review and reporting.
 
-<table>
-  <tr>
-    <td><img width="575" alt="Campaign Tab" src="https://github.com/user-attachments/assets/bc0ad88f-c225-4259-93f4-22002ac4d5af" /></td>
-    <td><img width="341" alt="Campaign Creation Tab" src="https://github.com/user-attachments/assets/575c3c11-d69e-4b54-8379-9a69daea77f8" /></td>
-  </tr>
-</table>
+<p align="center">
+  <img width="900" alt="Architecture" src="https://github.com/user-attachments/assets/96fca5a3-4265-4e6e-b535-eb61ad4f733e" />
+</p>
+
+<p align="center">
+  <img width="575" alt="Campaign Tab" src="https://github.com/user-attachments/assets/bc0ad88f-c225-4259-93f4-22002ac4d5af" />
+  <img width="341" alt="Campaign Creation Tab" src="https://github.com/user-attachments/assets/575c3c11-d69e-4b54-8379-9a69daea77f8" />
+</p>
 
 ## Important Note!
 This is a first-release build created with heavy vibe-coding. There may be unforeseen issues / flaws. Use only in an authorized context.
