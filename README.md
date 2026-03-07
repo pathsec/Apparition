@@ -5,7 +5,7 @@ Apparition is a campaign-driven, containerized browser-in-the-middle platform th
 Sessions can end automatically on timeout, manual teardown, or a defined completion condition—after which the container is destroyed and the user is redirected to a configured destination. Optionally, the user can continue browsing until a campaign-defined time limit is reached. When a completion condition is met, the session’s browser profile can be downloaded from the admin console; otherwise, the profile remains available for download at any time from the sessions view for review and reporting.
 
 <p align="center">
-  <img width="900" alt="Architecture" src="https://github.com/user-attachments/assets/96fca5a3-4265-4e6e-b535-eb61ad4f733e" />
+  <img width="900" alt="Architecture" src="https://github.com/user-attachments/assets/4d8b9cd5-13bf-44ed-8f1f-6418aafa6933" />
 </p>
 
 <p align="center">
