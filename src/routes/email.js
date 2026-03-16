@@ -1,6 +1,6 @@
 'use strict';
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
+const crypto  = require('crypto');
 const { getDb } = require('../models/init-db');
 const { requireAdminSession } = require('../middleware/auth');
 const { sendEmail, getMailConfig } = require('../services/mailer');
@@ -58,11 +58,12 @@ router.post('/send', async (req, res) => {
   }
 
   const controlHost = process.env.CONTROL_HOST || `http://localhost:${process.env.PORT || 3000}`;
+  const joinPath    = process.env.JOIN_PATH || 'join';
   const results = [];
 
   for (const email of emailList) {
-    // Generate a fresh UUIDv4 token for each recipient — never reuse tokens.
-    const token = uuidv4();
+    // Generate a fresh token for each recipient — same format as invites.js.
+    const token = crypto.randomBytes(6).toString('hex');
     let inviteId;
 
     try {
@@ -71,7 +72,7 @@ router.post('/send', async (req, res) => {
       );
       inviteId = insert.run(token, campaign_id, email).lastInsertRowid;
 
-      const link    = `${controlHost}/join/${token}`;
+      const link    = `${controlHost}/${joinPath}/${token}`;
       const txtBody = body_text.replace(/\{link\}/g, link);
       const htmlBody = body_html ? body_html.replace(/\{link\}/g, `<a href="${link}">${link}</a>`) : null;
 
