@@ -37,22 +37,11 @@
         + Generate Test Link
       </button>
 
-      <!-- Bulk generate: creates N tokens for later use / email sending -->
-      <div style="display:flex;gap:.5rem;align-items:center">
-        <input type="number" id="bulk-count" value="10" min="1" max="1000"
-               class="form-control" style="width:72px" title="Number of tokens to create">
-        <button class="btn" onclick="generateBulk(<%= campaign.id %>)">
-          Generate N Tokens
-          <span class="text-muted" style="font-size:.75rem;font-weight:400">(for email sending)</span>
-        </button>
-      </div>
     </div>
   </div>
 
   <p class="text-muted" style="font-size:.85rem;margin-bottom:1rem">
-    <strong>Test Link</strong> — creates one token and shows the join URL immediately so you can open it yourself.<br>
-    <strong>Generate N Tokens</strong> — creates tokens in bulk without sending them. Go to
-    <a href="/admin/email">Email</a> to attach tokens to email addresses and send them out.
+    Creates one token and shows the join URL immediately so you can open it yourself.
     Each token is single-use: once a container has been launched for it, the link stops working.
   </p>
 
@@ -141,18 +130,5 @@ function copyTest() {
   navigator.clipboard.writeText(url).then(() => alert('Copied!'));
 }
 
-async function generateBulk(campaignId) {
-  const count = parseInt(document.getElementById('bulk-count').value) || 10;
-  if (!confirm(`Create ${count} token(s) for this campaign?`)) return;
-  const r = await fetch('/admin/invites/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ campaign_id: campaignId, count }),
-  });
-  const data = await r.json();
-  if (!r.ok) { alert('Error: ' + data.error); return; }
-  alert(`Created ${data.generated} token(s). Go to Email to send them.`);
-  location.reload();
-}
 </script>
 <%- include('../../partials/foot') %>
