@@ -12,6 +12,7 @@ const path = require('path');
 
 const { initDb, getDb }   = require('./models/init-db');
 const { startCleanupJob } = require('./services/cleanup');
+const { isDisplayReady }  = require('./services/docker');
 
 const adminAuthRoutes = require('./routes/adminAuth');
 const campaignRoutes  = require('./routes/campaigns');
@@ -108,8 +109,46 @@ app.get('/vnc/:sessionId/status', (req, res) => {
   res.json({ completed, redirectUrl: completed ? row.redirect_url : null });
 });
 
-// Readiness probe — TCP-connects to the container's noVNC port.
-app.get('/vnc/:sessionId/ready', (req, res) => {
+// ── Email open tracking pixel ─────────────────────────────────────────────────
+// Served as a 1×1 transparent GIF embedded in HTML emails.
+// Every load is logged as an 'open' event (including scanner/bot hits).
+const TRACKING_PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+
+app.get('/t/:token', (req, res) => {
+  res.set({
+    'Content-Type':  'image/gif',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma':        'no-cache',
+  });
+  res.send(TRACKING_PIXEL);
+
+  // Log asynchronously — don't hold up the pixel response.
+  setImmediate(() => {
+    const db = getDb();
+    try {
+      const row = db.prepare(`
+        SELECT it.id AS invite_token_id, es.id AS email_send_id
+        FROM invite_tokens it
+        LEFT JOIN email_sends es ON es.invite_token_id = it.id
+        WHERE it.token = ?
+        ORDER BY es.sent_at DESC LIMIT 1
+      `).get(req.params.token);
+      if (!row) return;
+      db.prepare(`
+        INSERT INTO email_events (email_send_id, invite_token_id, event_type, ip, user_agent)
+        VALUES (?, ?, 'open', ?, ?)
+      `).run(row.email_send_id || null, row.invite_token_id,
+             req.ip || null, req.get('user-agent') || null);
+    } catch (_) {
+    } finally {
+      db.close();
+    }
+  });
+});
+
+// Readiness probe — TCP-connects to the container's noVNC port, then checks
+// that the kiosk display is ready (xsetroot has run, root window is white).
+app.get('/vnc/:sessionId/ready', async (req, res) => {
   const db  = getDb();
   const row = db.prepare(
     'SELECT container_port FROM sessions WHERE session_id = ? AND completed_at IS NULL'
@@ -118,12 +157,21 @@ app.get('/vnc/:sessionId/ready', (req, res) => {
 
   if (!row) return res.json({ ready: false });
 
-  const sock = new net.Socket();
-  sock.setTimeout(1000);
-  sock.on('connect', () => { sock.destroy(); res.json({ ready: true }); });
-  sock.on('error',   () => res.json({ ready: false }));
-  sock.on('timeout', () => { sock.destroy(); res.json({ ready: false }); });
-  sock.connect(row.container_port, NOVNC_INTERNAL_HOST);
+  // Fast path: bail early if VNC isn't even listening yet.
+  const tcpReady = await new Promise((resolve) => {
+    const sock = new net.Socket();
+    sock.setTimeout(1000);
+    sock.on('connect', () => { sock.destroy(); resolve(true); });
+    sock.on('error',   () => resolve(false));
+    sock.on('timeout', () => { sock.destroy(); resolve(false); });
+    sock.connect(row.container_port, NOVNC_INTERNAL_HOST);
+  });
+  if (!tcpReady) return res.json({ ready: false });
+
+  // Only redirect once xsetroot has run — ensures the first VNC frame is
+  // white rather than the default gray X root window.
+  const displayReady = await isDisplayReady(req.params.sessionId);
+  res.json({ ready: displayReady });
 });
 
 // Full HTTP proxy for noVNC — forwards /vnc/:sessionId/* → container's noVNC server.

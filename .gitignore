@@ -4,3 +4,15 @@ data/
 *.db
 *.db-wal
 *.db-shm
+
+# Firefox profile exports
+*.tar.gz
+*.tar
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS noise
+.DS_Store
+Thumbs.db

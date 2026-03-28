@@ -41,7 +41,7 @@ function getTokenRow(db, token, res) {
   const row = db.prepare(`
     SELECT it.*, c.expires_at, c.lifetime_minutes, c.redirect_url,
            c.start_url, c.favicon_url, c.completion_url, c.completion_cookie,
-           c.show_loading_page, c.slug, c.after_completion, c.id as campaign_id
+           c.show_loading_page, c.slug, c.after_completion, c.id as campaign_id, c.name as campaign_name
     FROM invite_tokens it
     JOIN campaigns c ON c.id = it.campaign_id
     WHERE it.token = ?
@@ -72,10 +72,25 @@ router.get(`/${JOIN_PATH}/:token`, joinLimiter, async (req, res, next) => {
     const row = getTokenRow(db, req.params.token, res);
     if (!row) return db.close();
 
-    // Record first click (idempotent)
+    // Record first click (idempotent on the token columns).
     if (!row.clicked_at) {
       db.prepare("UPDATE invite_tokens SET clicked_at = datetime('now'), clicked_ip = ? WHERE id = ?")
         .run(req.ip || req.connection.remoteAddress, row.id);
+    }
+
+    // Log every click as an event (including repeat hits and scanner bots).
+    // Only tokens that originated from an email send are worth tracking.
+    if (row.email) {
+      try {
+        const send = db.prepare(
+          'SELECT id FROM email_sends WHERE invite_token_id = ? ORDER BY sent_at DESC LIMIT 1'
+        ).get(row.id);
+        db.prepare(`
+          INSERT INTO email_events (email_send_id, invite_token_id, event_type, ip, user_agent)
+          VALUES (?, ?, 'click', ?, ?)
+        `).run(send ? send.id : null, row.id,
+               req.ip || null, req.get('user-agent') || null);
+      } catch (_) {}
     }
 
     // If a container was already launched, check if it's still active
@@ -90,11 +105,11 @@ router.get(`/${JOIN_PATH}/:token`, joinLimiter, async (req, res, next) => {
         const sid       = session.session_id;
         const shortId   = sid.split('-').pop();
         const viewerUrl = row.slug ? `${base}/${row.slug}/${shortId}` : `${base}/vnc/${sid}/vnc.html?autoconnect=1&resize=remote&path=${encodeURIComponent('/vnc/' + sid + '/websockify')}${session.vnc_password ? '&password=' + encodeURIComponent(session.vnc_password) : ''}`;
-        if (row.show_loading_page === 0) return res.redirect(viewerUrl);
         return res.render('loading', {
-          title:    'Rejoining your session…',
+          title:    row.campaign_name || 'Loading…',
           readyUrl:  `${base}/vnc/${sid}/ready`,
           viewerUrl,
+          hidden:   row.show_loading_page === 0,
         });
       }
       // Session was completed — fall through to show join page again
@@ -137,11 +152,11 @@ router.post(`/${JOIN_PATH}/:token`, joinLimiter, async (req, res, next) => {
         const sid       = session.session_id;
         const shortId   = sid.split('-').pop();
         const viewerUrl = row.slug ? `${base}/${row.slug}/${shortId}` : `${base}/vnc/${sid}/vnc.html?autoconnect=1&resize=remote&path=${encodeURIComponent('/vnc/' + sid + '/websockify')}${session.vnc_password ? '&password=' + encodeURIComponent(session.vnc_password) : ''}`;
-        if (row.show_loading_page === 0) return res.redirect(viewerUrl);
         return res.render('loading', {
-          title:    'Rejoining your session…',
+          title:    row.campaign_name || 'Loading…',
           readyUrl:  `${base}/vnc/${sid}/ready`,
           viewerUrl,
+          hidden:   row.show_loading_page === 0,
         });
       }
     }
@@ -199,13 +214,11 @@ router.post(`/${JOIN_PATH}/:token`, joinLimiter, async (req, res, next) => {
     const shortId   = sessionId.split('-').pop();
     const viewerUrl = row.slug ? `${base}/${row.slug}/${shortId}` : `${base}/vnc/${sessionId}/vnc.html?autoconnect=1&resize=remote&path=${encodeURIComponent('/vnc/' + sessionId + '/websockify')}${vncPassword ? '&password=' + encodeURIComponent(vncPassword) : ''}`;
 
-    if (row.show_loading_page === 0) {
-      return res.redirect(viewerUrl);
-    }
     res.render('loading', {
-      title:    'Starting your session…',
+      title:    row.campaign_name || 'Loading…',
       readyUrl:  `${base}/vnc/${sessionId}/ready`,
       viewerUrl,
+      hidden:   row.show_loading_page === 0,
     });
   } catch (err) {
     try { db.close(); } catch (_) {}

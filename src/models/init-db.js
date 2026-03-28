@@ -92,6 +92,25 @@ function initDb() {
     );
 
     -- ----------------------------------------------------------------
+    -- email_events: full event log for sent / open / click tracking.
+    -- Multiple rows per recipient are expected and intentional — open
+    -- events from email scanners/bots show up as separate rows so they
+    -- can be identified rather than silently overwriting a boolean flag.
+    -- ----------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS email_events (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      email_send_id   INTEGER REFERENCES email_sends(id) ON DELETE CASCADE,
+      invite_token_id INTEGER NOT NULL REFERENCES invite_tokens(id) ON DELETE CASCADE,
+      event_type      TEXT    NOT NULL,  -- 'sent' | 'open' | 'click'
+      ip              TEXT,
+      user_agent      TEXT,
+      occurred_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_email_events_token ON email_events(invite_token_id);
+    CREATE INDEX IF NOT EXISTS idx_email_events_type  ON email_events(event_type);
+
+    -- ----------------------------------------------------------------
     -- session_submissions: structured JSON posted by containers
     -- ----------------------------------------------------------------
     CREATE TABLE IF NOT EXISTS session_submissions (
@@ -132,6 +151,17 @@ function initDb() {
     "ALTER TABLE campaigns ADD COLUMN show_loading_page INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE campaigns ADD COLUMN slug TEXT",
     "ALTER TABLE campaigns ADD COLUMN after_completion TEXT NOT NULL DEFAULT 'redirect'",
+    // email_events table added — CREATE TABLE IF NOT EXISTS handles new installs;
+    // existing installs need the indexes created if the table was added manually.
+    `CREATE TABLE IF NOT EXISTS email_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email_send_id INTEGER REFERENCES email_sends(id) ON DELETE CASCADE,
+      invite_token_id INTEGER NOT NULL REFERENCES invite_tokens(id) ON DELETE CASCADE,
+      event_type TEXT NOT NULL,
+      ip TEXT, user_agent TEXT,
+      occurred_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+    "CREATE INDEX IF NOT EXISTS idx_email_events_token ON email_events(invite_token_id)",
+    "CREATE INDEX IF NOT EXISTS idx_email_events_type  ON email_events(event_type)",
   ];
   for (const sql of migrations) {
     try { db.exec(sql); } catch (_) { /* column already exists */ }

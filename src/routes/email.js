@@ -74,14 +74,27 @@ router.post('/send', async (req, res) => {
 
       const link    = `${controlHost}/${joinPath}/${token}`;
       const txtBody = body_text.replace(/\{link\}/g, link);
-      const htmlBody = body_html ? body_html.replace(/\{link\}/g, `<a href="${link}">${link}</a>`) : null;
+
+      let htmlBody = body_html ? body_html.replace(/\{link\}/g, `<a href="${link}">${link}</a>`) : null;
+      // Append 1×1 tracking pixel to HTML emails so opens are logged via /t/:token.
+      if (htmlBody) {
+        const pixel = `<img src="${controlHost}/t/${token}" width="1" height="1" style="display:none;border:0" alt="">`;
+        htmlBody = htmlBody.includes('</body>')
+          ? htmlBody.replace('</body>', `${pixel}</body>`)
+          : htmlBody + pixel;
+      }
 
       await sendEmail({ to: email, subject, text: txtBody, html: htmlBody });
 
-      db.prepare(`
+      const sendId = db.prepare(`
         INSERT INTO email_sends (invite_token_id, campaign_id, recipient_email, subject, body_text, body_html, sent_at)
         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-      `).run(inviteId, campaign_id, email, subject, txtBody, htmlBody);
+      `).run(inviteId, campaign_id, email, subject, txtBody, htmlBody).lastInsertRowid;
+
+      db.prepare(`
+        INSERT INTO email_events (email_send_id, invite_token_id, event_type, ip, user_agent)
+        VALUES (?, ?, 'sent', NULL, NULL)
+      `).run(sendId, inviteId);
 
       results.push({ email, status: 'sent', token });
     } catch (err) {
