@@ -2,8 +2,7 @@
 <openbox_config xmlns="http://openbox.org/3.4/rc">
   <applications>
     <!-- Force every window fullscreen with no decorations.
-         This ensures Firefox is fullscreen from the moment it maps,
-         before --kiosk mode takes effect, eliminating the corner flash. -->
+         Ensures Firefox is fullscreen from the moment it maps. -->
     <application class="*">
       <fullscreen>yes</fullscreen>
       <decor>no</decor>
