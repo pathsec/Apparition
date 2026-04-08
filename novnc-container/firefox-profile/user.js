@@ -10,6 +10,8 @@ user_pref("browser.shell.checkDefaultBrowser", false);
 user_pref("browser.tabs.warnOnClose", false);
 user_pref("trailhead.firstrun.didSeeAboutWelcome", true);
 user_pref("browser.aboutwelcome.enabled", false);
+// White content background so Firefox blends with the root window during startup
+user_pref("browser.display.background_color", "#ffffff");
 // Disable telemetry noise
 user_pref("datareporting.healthreport.uploadEnabled", false);
 user_pref("toolkit.telemetry.enabled", false);

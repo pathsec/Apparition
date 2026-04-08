@@ -116,6 +116,7 @@ async function spawnContainer(opts) {
       `VNC_PW=${vncPassword}`,         // accetto image reads VNC_PW to set the VNC password
       `STARTUP_URL=${startUrl}`,        // accetto g3: opens this URL in Firefox on launch
       `NOVNC_STARTUP_URL=${startUrl}`,  // fallback name used by some accetto variants
+      `VNC_RESOLUTION=${process.env.VNC_RESOLUTION || '1920x1080'}`, // match viewer size to avoid noVNC upscale blur
     ],
 
     ExposedPorts: { '6901/tcp': {} },
@@ -255,4 +256,27 @@ async function grabContainerProfile(sessionId, sessionToken, uploadUrl) {
   }
 }
 
-module.exports = { spawnContainer, teardownContainer, expireSession, listManagedContainers, ensureImage, grabContainerProfile };
+/**
+ * Check whether the kiosk display is ready to be shown.
+ * container-startup.sh writes /tmp/kiosk-display-ready after xsetroot runs,
+ * so this returning true means the root window is white and Firefox is launching.
+ */
+async function isDisplayReady(sessionId) {
+  try {
+    const container = docker.getContainer(`novnc-session-${sessionId}`);
+    const exec = await container.exec({
+      Cmd: ['test', '-f', '/tmp/kiosk-display-ready'],
+      AttachStdout: false,
+      AttachStderr: false,
+    });
+    const stream = await exec.start({ hijack: true, stdin: false });
+    stream.resume();
+    await new Promise((resolve) => stream.on('end', resolve));
+    const result = await exec.inspect();
+    return result.ExitCode === 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+module.exports = { spawnContainer, teardownContainer, expireSession, listManagedContainers, ensureImage, grabContainerProfile, isDisplayReady };

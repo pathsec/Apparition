@@ -107,6 +107,69 @@ router.post('/:id', (req, res) => {
   }
 });
 
+// GET /admin/campaigns/:id/export.csv
+router.get('/:id/export.csv', (req, res) => {
+  const db = getDb();
+  try {
+    const campaign = db.prepare('SELECT name FROM campaigns WHERE id = ?').get(req.params.id);
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    const rows = db.prepare(`
+      SELECT
+        it.email,
+        it.token,
+        es.sent_at,
+        es.send_error,
+        COUNT(CASE WHEN ee.event_type = 'open'  THEN 1 END) AS open_count,
+        MIN(CASE  WHEN ee.event_type = 'open'  THEN ee.occurred_at END) AS first_open,
+        MAX(CASE  WHEN ee.event_type = 'open'  THEN ee.occurred_at END) AS last_open,
+        GROUP_CONCAT(CASE WHEN ee.event_type = 'open'  THEN ee.ip END) AS open_ips,
+        GROUP_CONCAT(CASE WHEN ee.event_type = 'open'  THEN ee.user_agent END) AS open_user_agents,
+        COUNT(CASE WHEN ee.event_type = 'click' THEN 1 END) AS click_count,
+        MIN(CASE  WHEN ee.event_type = 'click' THEN ee.occurred_at END) AS first_click,
+        MAX(CASE  WHEN ee.event_type = 'click' THEN ee.occurred_at END) AS last_click,
+        GROUP_CONCAT(CASE WHEN ee.event_type = 'click' THEN ee.ip END) AS click_ips,
+        it.launched,
+        it.completed
+      FROM invite_tokens it
+      LEFT JOIN email_sends es ON es.invite_token_id = it.id
+      LEFT JOIN email_events ee ON ee.invite_token_id = it.id
+      WHERE it.campaign_id = ? AND it.email IS NOT NULL
+      GROUP BY it.id, es.id
+      ORDER BY es.sent_at ASC
+    `).all(req.params.id);
+
+    const headers = [
+      'email', 'token', 'sent_at', 'send_error',
+      'open_count', 'first_open', 'last_open', 'open_ips', 'open_user_agents',
+      'click_count', 'first_click', 'last_click', 'click_ips',
+      'launched', 'completed',
+    ];
+
+    function csvField(v) {
+      if (v == null) return '';
+      const s = String(v);
+      return (s.includes(',') || s.includes('"') || s.includes('\n'))
+        ? '"' + s.replace(/"/g, '""') + '"'
+        : s;
+    }
+
+    const lines = [
+      headers.join(','),
+      ...rows.map(r => headers.map(h => csvField(r[h])).join(',')),
+    ];
+
+    const filename = `${campaign.name.replace(/[^a-z0-9]+/gi, '-')}-tracking.csv`;
+    res.set({
+      'Content-Type':        'text/csv',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(lines.join('\r\n'));
+  } finally {
+    db.close();
+  }
+});
+
 // POST /admin/campaigns/:id/delete
 router.post('/:id/delete', (req, res) => {
   const db = getDb();

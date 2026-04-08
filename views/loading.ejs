@@ -33,8 +33,10 @@
   </style>
 </head>
 <body>
+  <% if (!hidden) { %>
   <div class="spinner"></div>
   <p>Please wait…</p>
+  <% } %>
   <script>
     const READY_URL   = <%- JSON.stringify(readyUrl) %>;
     const VIEWER_URL  = <%- JSON.stringify(viewerUrl) %>;

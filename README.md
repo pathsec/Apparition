@@ -1,8 +1,8 @@
 # Apparition
 
-Apparition is a campaign-driven, containerized browser-in-the-middle platform that delivers ephemeral, isolated browsing sessions to recipients via a link. When a user visits /join/<token>, Apparition launches a dedicated Docker container running Firefox in a headless XFCE desktop streamed over noVNC, providing a full-screen “real browser” experience without exposing the operator host or other sessions. A Node/Express control server orchestrates session creation and teardown, enforces campaign lifetime and completion rules, and records campaign/token/session state in SQLite.
+Apparition is a campaign-driven, containerized browser-in-the-middle platform that delivers ephemeral, isolated browsing sessions to recipients via a link. When a user visits /join/<token>, Apparition launches a dedicated Docker container running Firefox in a lightweight Openbox desktop streamed over noVNC, providing a full-screen "real browser" experience without exposing the operator host or other sessions. A Node/Express control server orchestrates session creation and teardown, enforces campaign lifetime and completion rules, and records campaign/token/session state in SQLite.
 
-Sessions can end automatically on timeout, manual teardown, or a defined completion condition—after which the container is destroyed and the user is redirected to a configured destination. Optionally, the user can continue browsing until a campaign-defined time limit is reached. When a completion condition is met, the session’s browser profile can be downloaded from the admin console; otherwise, the profile remains available for download at any time from the sessions view for review and reporting.
+Sessions can end automatically on timeout, manual teardown, or a defined completion condition—after which the container is destroyed and the user is redirected to a configured destination. Optionally, the user can continue browsing until a campaign-defined time limit is reached. When a completion condition is met, the session's browser profile can be downloaded from the admin console; otherwise, the profile remains available for download at any time from the sessions view for review and reporting.
 
 <p align="center">
   <img width="900" alt="Architecture" src="https://github.com/user-attachments/assets/4d8b9cd5-13bf-44ed-8f1f-6418aafa6933" />
@@ -21,8 +21,9 @@ This is a first-release build created with heavy vibe-coding. There may be unfor
 1. You create a **Campaign** with a start URL, lifetime, and redirect URL.
 2. You generate **Invite Tokens** and optionally email them to recipients.
 3. A recipient clicks their `/join/<token>` link.
-4. Apparition spins up a Docker container running Firefox in a headless XFCE desktop via noVNC.
-5. The user sees a full-screen browser. When the session ends (timeout, completion trigger, or manual teardown), the container is destroyed and the user is redirected.
+4. Apparition spins up a Docker container running Firefox in a headless Openbox desktop via noVNC.
+5. The control server waits until the VNC display is ready and Firefox has opened its window before redirecting the user — no loading flash or black screen.
+6. The user sees a full-screen browser. When the session ends (timeout, completion trigger, or manual teardown), the container is destroyed and the user is redirected.
 
 ## Architecture
 
@@ -49,8 +50,8 @@ This is a first-release build created with heavy vibe-coding. There may be unfor
 ```
 
 - **Control server** — Node.js/Express app. Manages campaigns, tokens, sessions, and the admin dashboard. Spawns and tears down sibling containers via the Docker socket.
-- **noVNC containers** — Docker sibling containers, each running XFCE + Firefox + noVNC, bound to a unique host port (6900–6999 by default). Each container receives session context via environment variables.
-- **SQLite** — Stores campaigns, invite tokens, sessions, email history, and submissions.
+- **noVNC containers** — Docker sibling containers, each running Openbox + Firefox + noVNC, bound to a unique host port (6900–6999 by default). Each container receives session context via environment variables.
+- **SQLite** — Stores campaigns, invite tokens, sessions, email history, event logs, and submissions.
 - **nginx** (recommended for production) — Terminates TLS, proxies all traffic including WebSocket upgrades to noVNC.
 
 ---
@@ -206,6 +207,7 @@ See `.env.example` for the full annotated template.
 | `CONTAINER_MEMORY_LIMIT` | `1073741824` | Per-container memory limit in bytes (default 1 GB) |
 | `CONTAINER_CPU_LIMIT` | `1000000000` | Per-container CPU limit in nanocpus (default 1 CPU) |
 | `CLEANUP_INTERVAL_MS` | `60000` | How often the cleanup job runs in milliseconds |
+| `VNC_RESOLUTION` | `1920x1080` | Initial VNC framebuffer resolution. Set to match your typical viewer window size to avoid upscale blur. noVNC's `resize=remote` adjusts this dynamically once connected. |
 
 ### SMTP / Email
 
@@ -247,7 +249,7 @@ A campaign is a named configuration that a set of invite tokens inherit. Each ca
 | **Completion URL** | URL that, when visited by Firefox, triggers session completion |
 | **Completion Cookie** | Cookie name that, when set, triggers session completion |
 | **After Completion** | `redirect` (default) tears down the container; `keep_alive` keeps it running |
-| **Show Loading Page** | Whether to show a "Starting..." page while the container boots |
+| **Show Loading Page** | Whether to show a "Starting..." page while the container boots. When disabled, the transition is seamless — the control server waits for the display to be ready before redirecting. |
 
 ---
 
@@ -263,10 +265,38 @@ When a token is used:
 
 1. A Docker container starts (`novnc-session-<uuid>`)
 2. Firefox opens the campaign's start URL
-3. A loading page polls the control server until the noVNC port accepts connections
+3. The control server polls until Openbox is running, the root window is white, and Firefox has opened its window
 4. The viewer renders a full-screen iframe showing the Firefox session
 
 The viewer polls the server every 3 seconds to sync the browser tab title and favicon with Firefox's current page.
+
+---
+
+## Email Tracking
+
+When emails are sent through the built-in composer, Apparition logs every event as a discrete row in the `email_events` table — rather than overwriting boolean flags — so scanner and bot activity is visible alongside genuine human engagement.
+
+### Events logged
+
+| Event | When |
+|---|---|
+| `sent` | Email was successfully handed off to the SMTP server |
+| `open` | The 1×1 tracking pixel embedded in the HTML email was loaded |
+| `click` | The `/join/<token>` link was visited |
+
+Each event records the timestamp, IP address, and user-agent. Multiple `open` events from the same send are expected and normal — email security scanners typically pre-fetch images before delivery, generating hits with Microsoft/Google datacenter IPs and generic scanner user-agents that precede any human open.
+
+### Tracking pixel
+
+A 1×1 transparent GIF is automatically appended to every HTML email body at send time. The pixel URL is `/t/<token>` and requires no authentication. Set `Cache-Control: no-store` is sent to prevent CDN or proxy caching.
+
+### CSV export
+
+From the campaign detail page, click **Export CSV** to download a per-recipient summary with the following columns:
+
+`email`, `token`, `sent_at`, `send_error`, `open_count`, `first_open`, `last_open`, `open_ips`, `open_user_agents`, `click_count`, `first_click`, `last_click`, `click_ips`, `launched`, `completed`
+
+The `open_ips` and `open_user_agents` columns contain comma-separated lists of all recorded values, making it straightforward to distinguish scanner hits (repeated datacenter IPs before the email was delivered) from genuine opens.
 
 ---
 
@@ -275,9 +305,9 @@ The viewer polls the server every 3 seconds to sync the browser tab title and fa
 The admin panel at `/admin` provides:
 
 - **Dashboard** — live session count and recent activity
-- **Campaigns** — create and manage campaigns, view tokens and session logs
+- **Campaigns** — create and manage campaigns; view tokens, session logs, and export tracking CSV
 - **Invite Links** — manage individual tokens, view click and launch stats
-- **Email** — compose and send campaign emails with embedded invite links
+- **Email** — compose and send campaign emails with embedded invite links and automatic open-tracking pixels
 - **Sessions** — full session log with submission data and Firefox profile downloads
 - **Settings** — configure SMTP and Cloudflare Turnstile
 
@@ -293,6 +323,24 @@ TURNSTILE_SECRET_KEY=your-secret-key
 ```
 
 When configured, the join page renders a Turnstile widget before allowing a session to start.
+
+---
+
+## Kiosk Container
+
+Each session runs in an isolated Docker container built from `novnc-container/`. Key properties:
+
+- **Openbox** window manager (replaces XFCE) — starts in ~1–2 seconds versus 5–7 for a full desktop environment, with no panels, file managers, or daemons
+- **Firefox** runs in `--kiosk` mode against a pre-configured profile that disables session restore, welcome pages, telemetry, and default browser prompts
+- **noVNC** streams the display over WebSocket; the control bar, status popups, and loading overlay are hidden for a seamless presentation
+- **Dynamic resolution** — `resize=remote` is set on all noVNC URLs, so the VNC framebuffer resizes to match the user's browser window automatically
+- **Seamless startup** — a readiness flag (`/tmp/kiosk-display-ready`) is written only after `xsetroot` has set the root window to white and `xdotool` confirms Firefox has opened its window. The loading page polls this flag via `docker exec` before redirecting, so the user always lands on an active session with no gray or black flash.
+
+To rebuild the kiosk image after changes:
+
+```bash
+docker compose build novnc-kiosk
+```
 
 ---
 
@@ -315,3 +363,4 @@ The server runs on `http://localhost:3000`. Docker must be running and accessibl
 - All container-to-server callbacks are authenticated with short-lived, session-scoped JWTs.
 - Rate limiting is applied to the join and session endpoints.
 - The `security_opt: label:disable` in `docker-compose.yml` is required on Fedora/RHEL to allow Docker socket access under SELinux. It only affects label confinement for the app container.
+- The tracking pixel endpoint (`/t/:token`) is intentionally unauthenticated — it must be reachable by email clients. It only records an event and returns a static GIF; it exposes no session data.
